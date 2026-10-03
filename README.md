@@ -43,6 +43,8 @@ The setup walks you through five steps:
 
 If only a printer or only a scanner is found, setup does that half and says so.
 
+macOS will show a notification that **"AirScan WSD Bridge" can run in the background**. That is the scan service; it is listed under System Settings > General > Login Items & Extensions.
+
 If macOS asks whether `python3` or your terminal may find devices on the local network, allow it. Discovery cannot work without it.
 
 To just look, without installing anything:
@@ -50,6 +52,14 @@ To just look, without installing anything:
 ```bash
 python3 airscan_wsd.py discover
 ```
+
+## Using it with Claude or another AI assistant
+
+If you would rather have an AI tool do the setup, open this folder in it (for example Claude Code) and ask:
+
+> Set up my printer and scanner with this tool.
+
+[AGENTS.md](AGENTS.md) tells the assistant which commands are safe to run by itself, what to ask you first (printing a test page, starting a scan), and how to diagnose problems. Claude Code reads it automatically through `CLAUDE.md`.
 
 ## What to expect
 
