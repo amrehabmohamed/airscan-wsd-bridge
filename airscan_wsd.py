@@ -34,6 +34,9 @@ PLIST = Path.home() / "Library" / "LaunchAgents" / f"{LABEL}.plist"
 LOG = Path.home() / "Library" / "Logs" / f"{NAME}.log"
 SCAN_DIR = Path.home() / "Documents" / "Scans"
 DEFAULT_PORT = 8290
+# macOS names a background item after the file launchd runs, so run a launcher with a readable name
+# instead of "python3".
+LAUNCHER = "AirScan WSD Bridge"
 SOURCES = ("airscan_wsd.py", "bridge.py", "ipp.py", "wsd.py")
 
 
@@ -186,13 +189,16 @@ def install_service():
     if here != APP_DIR:
         for name in SOURCES:
             shutil.copy(here / name, APP_DIR / name)
+    launcher = APP_DIR / LAUNCHER
+    launcher.write_text(f'#!/bin/sh\nexec "{sys.executable}" -u "{APP_DIR / "airscan_wsd.py"}" serve\n')
+    launcher.chmod(0o755)
     PLIST.parent.mkdir(parents=True, exist_ok=True)
     LOG.parent.mkdir(parents=True, exist_ok=True)
     PLIST.write_text(f"""<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict>
 <key>Label</key><string>{LABEL}</string>
-<key>ProgramArguments</key><array><string>{sys.executable}</string><string>-u</string><string>{APP_DIR / "airscan_wsd.py"}</string><string>serve</string></array>
+<key>ProgramArguments</key><array><string>{launcher}</string></array>
 <key>WorkingDirectory</key><string>{APP_DIR}</string>
 <key>RunAtLoad</key><true/>
 <key>KeepAlive</key><true/>
