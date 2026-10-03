@@ -7,6 +7,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import bridge  # noqa: E402
+import ipp  # noqa: E402
 import wsd  # noqa: E402
 
 W = wsd.WSCN
@@ -106,6 +107,39 @@ class Escl(unittest.TestCase):
     def test_settings_defaults(self):
         s = self.bridge.parse_settings("<scan:ScanSettings/>")
         self.assertEqual(s, dict(dpi=300, x=0, y=0, w=2550, h=3504, fmt="image/jpeg", mode="RGB24"))
+
+
+class Printer(unittest.TestCase):
+    IPPTOOL = (
+        "    get-printer-attributes                                    [PASS]\n"
+        "        document-format-supported (1setOf mimeMediaType) = application/octet-stream,image/pwg-raster\n"
+        "        color-supported (boolean) = true\n"
+        "        sides-supported (keyword) = one-sided\n"
+        "        media-supported (1setOf keyword) = iso_a4_210x297mm,na_letter_8.5x11in,jpn_hagaki_100x148mm,custom_min_0x0mm\n"
+        "        printer-make-and-model (textWithoutLanguage) = Canon G3010 series\n")
+
+    def test_attributes(self):
+        attrs = ipp.parse_attributes(self.IPPTOOL)
+        self.assertEqual(attrs["printer-make-and-model"], ["Canon G3010 series"])
+        self.assertTrue(ipp.driverless(attrs))
+        text = ipp.describe(attrs)
+        self.assertIn("Colour      : yes", text)
+        self.assertIn("Two-sided   : no", text)
+        self.assertIn("A4, Letter and 1 more", text)
+
+    def test_vendor_only_printer_is_not_driverless(self):
+        self.assertFalse(ipp.driverless({"document-format-supported": ["application/octet-stream"]}))
+
+    def test_queues(self):
+        queues = ipp.parse_queues("device for Office: ipp://printer.local:631/ipp/print\n"
+                                  "device for Other: dnssd://My%20Printer._ipp._tcp.local./?uuid=1\n")
+        self.assertEqual(queues["Office"], "ipp://printer.local:631/ipp/print")
+        self.assertEqual(len(queues), 2)
+        self.assertEqual(ipp.parse_queues("lpstat: No destinations added.\n"), {})
+
+    def test_queue_name(self):
+        self.assertEqual(ipp.queue_name("Canon G3010 series"), "Canon_G3010_series")
+        self.assertEqual(ipp.queue_name("!!"), "Printer")
 
 
 if __name__ == "__main__":

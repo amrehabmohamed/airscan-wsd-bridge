@@ -1,6 +1,6 @@
 ---
 name: Device report
-about: Tell us whether a scanner works with the bridge
+about: Tell us whether a printer or scanner works
 title: "Device report: <make and model>"
 labels: device-report
 ---
@@ -9,7 +9,9 @@ labels: device-report
 
 **macOS version:**
 
-**Result:** works / partly works / does not work
+**Printing:** works / partly works / does not work / not tried
+
+**Scanning:** works / partly works / does not work / not tried
 
 **Output of `python3 airscan_wsd.py discover`** (replace IP addresses, serial numbers and `urn:uuid:` values with `<removed>`):
 

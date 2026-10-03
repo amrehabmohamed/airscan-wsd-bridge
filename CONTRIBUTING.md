@@ -1,6 +1,6 @@
 # Contributing
 
-The goal is simple: make more WSD-only scanners work natively on macOS. The most useful contributions are device reports and fixes for devices that do not work yet.
+The goal is simple: make more network printers and WSD-only scanners work natively on macOS. The most useful contributions are device reports and fixes for devices that do not work yet.
 
 ## Report a device
 

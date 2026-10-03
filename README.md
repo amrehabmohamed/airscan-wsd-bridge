@@ -1,10 +1,15 @@
 # airscan-wsd-bridge
 
-Scan natively on macOS from network printers that macOS does not recognise as scanners.
+Print and scan natively on macOS with network all-in-one printers that macOS does not set up by itself.
 
 Many inexpensive all-in-one printers (for example the Canon PIXMA G3010 / G3410 series) have a perfectly good Wi-Fi scanner, but they only speak **WSD** (Microsoft's "Web Services for Devices" scan protocol). macOS only scans from **AirScan (eSCL)** devices, so the scanner never appears in Image Capture, Preview or Printers & Scanners, and the vendor's phone app becomes the only way to scan.
 
-This project is a small background service that sits on your Mac, presents itself to macOS as an AirScan scanner, and translates every request into WSD calls to the real device.
+Printing has a similar gap: these printers usually support driverless printing (IPP), but without AirPrint macOS never offers them.
+
+This project fixes both:
+
+- **Scanning:** a small background service on your Mac presents itself to macOS as an AirScan scanner and translates every request into WSD calls to the real device.
+- **Printing:** it finds the printer, shows what it can do, and adds it to macOS as a driverless printer.
 
 ```
 Image Capture / Preview  --eSCL-->  airscan-wsd-bridge (on your Mac)  --WSD-->  printer
@@ -17,7 +22,8 @@ Image Capture / Preview  --eSCL-->  airscan-wsd-bridge (on your Mac)  --WSD-->  
 ## Requirements
 
 - macOS with `python3` (3.9 or newer). It comes with the Xcode Command Line Tools; if `python3 --version` asks to install them, accept.
-- A printer/scanner on the same network that offers a WSD scan service with a flatbed and JPEG output.
+- For scanning: a device on the same network that offers a WSD scan service with a flatbed and JPEG output.
+- For printing: a device that supports driverless IPP printing (most Mopria-certified printers). Adding a printer needs an administrator account.
 
 ## Setup
 
@@ -27,12 +33,15 @@ cd airscan-wsd-bridge
 python3 airscan_wsd.py setup
 ```
 
-The setup walks you through four steps:
+The setup walks you through five steps:
 
-1. **Find your scanner.** It searches the network for about 5 seconds and prints each scanner's resolutions, colour modes and flatbed size. If there are several, you pick one.
-2. **Test scan.** Put a page on the glass. It scans at the lowest resolution and opens the result so you can confirm the device really works before anything is installed. You can skip this.
-3. **Install the background service.** A per-user LaunchAgent that starts at login. It runs from a copy in `~/Library/Application Support/airscan-wsd-bridge`, so you can move or delete the cloned folder afterwards.
-4. **Scan from macOS.** Open Image Capture, Preview (File > Import from Scanner) or System Settings > Printers & Scanners. The scanner appears under *Shared*.
+1. **Find your devices.** It searches the network for about 10 seconds and lists the printers and scanners that answered.
+2. **Add the printer to macOS.** It shows the printer's colour support, paper sizes and resolution, then adds it as a driverless printer so it appears in every app's print dialog. If macOS already has it, nothing is changed. You can print a one-sheet test page.
+3. **Test the scanner.** It prints the scanner's resolutions, colour modes and flatbed size. Put a page on the glass; it scans at the lowest resolution and opens the result so you can confirm the device really works before the service is installed. You can skip this.
+4. **Install the scan service.** A per-user LaunchAgent that starts at login. It runs from a copy in `~/Library/Application Support/airscan-wsd-bridge`, so you can move or delete the cloned folder afterwards.
+5. **Use it.** Print with Cmd+P in any app. Scan from Image Capture, Preview (File > Import from Scanner) or System Settings > Printers & Scanners; the scanner appears under *Shared*.
+
+If only a printer or only a scanner is found, setup does that half and says so.
 
 If macOS asks whether `python3` or your terminal may find devices on the local network, allow it. Discovery cannot work without it.
 
@@ -56,49 +65,36 @@ python3 airscan_wsd.py discover
 
 | Command | What it does |
 | --- | --- |
-| `python3 airscan_wsd.py setup` | Guided setup (add `--yes` to skip the questions, `--no-test` to skip the test scan) |
-| `python3 airscan_wsd.py discover` | List WSD scanners and their features |
+| `python3 airscan_wsd.py setup` | Guided setup (add `--yes` to skip the questions, `--no-test` to skip the test page and test scan) |
+| `python3 airscan_wsd.py discover` | List printers and scanners and their features, without changing anything |
 | `python3 airscan_wsd.py scan` | Scan one page to `~/Documents/Scans` (`--dpi`, `--gray`, `--pdf`, `--out`, `--no-open`) |
-| `python3 airscan_wsd.py status` | Is the service running, is the scanner reachable |
-| `python3 airscan_wsd.py uninstall` | Remove the service and its settings |
+| `python3 airscan_wsd.py status` | Which printers macOS has, is the scan service running, is the scanner reachable |
+| `python3 airscan_wsd.py uninstall` | Remove the scan service, its settings, and the printer if setup added it |
 
 Log file: `~/Library/Logs/airscan-wsd-bridge.log`
 
 ## Tested devices
 
-| Device | macOS | Result | Reported by |
-| --- | --- | --- | --- |
-| Canon PIXMA G3010 series (sold as G3410 in some regions), firmware 1.130 | 27.0 | Works: colour and greyscale, 150/300/600 dpi, JPEG and PDF | @amrehabmohamed |
+| Device | macOS | Printing | Scanning | Reported by |
+| --- | --- | --- | --- | --- |
+| Canon PIXMA G3010 series (sold as G3410 in some regions), firmware 1.130 | 27.0 | Works (driverless, colour, 600 dpi, one-sided) | Works: colour and greyscale, 150/300/600 dpi, JPEG and PDF | @amrehabmohamed |
 
 Everything else is untested. If you try another device, please open a device report issue, whether it worked or not. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
-## Printing from the same printer
-
-Printers like this usually print without a driver too; macOS just does not offer them automatically because they lack AirPrint. If yours supports IPP (most Mopria-certified printers do):
-
-```bash
-ippfind
-```
-
-That prints an address such as `ipp://XXXXXXXXXXXX.local:631/ipp/print`. Add the printer with it:
-
-```bash
-lpadmin -p My_Printer -E -v "ipp://XXXXXXXXXXXX.local:631/ipp/print" -m everywhere
-```
-
-It then appears in every app's print dialog.
-
 ## Troubleshooting
 
-- **No scanner found.** Printer on and finished starting up; same Wi-Fi as the Mac (not a guest network); no VPN; Local Network permission allowed for your terminal (System Settings > Privacy & Security > Local Network).
+- **Nothing found.** Printer on and finished starting up; same Wi-Fi as the Mac (not a guest network); no VPN; Local Network permission allowed for your terminal (System Settings > Privacy & Security > Local Network).
 - **"this scanner offers no JPEG output" or "reports no flatbed".** The device is discovered but not supported yet. Please report it.
 - **The scanner is stuck with its light on.** Press Stop on the printer, or switch it off and on. Then run `status` and check it says `Idle` before scanning again.
 - **The scanner shows in Image Capture but scans fail.** Look at the log file; it records each scan request and why it was refused.
+- **"needs the manufacturer's driver".** The printer does not offer a driverless format (PWG Raster, URF or PDF), so it cannot be added automatically.
+- **"Could not add the printer".** Adding printers needs an administrator account on the Mac.
 - **Port 8290 is taken.** Setup picks the next free port automatically.
 
 ## Limitations
 
-- Flatbed only. Document feeders (ADF) and duplex are not supported.
+- Scanning is flatbed only. Document feeders (ADF) and duplex scanning are not supported.
+- Printer features come from what the printer reports over IPP; vendor extras such as ink levels or head cleaning are not available.
 - One scanner per Mac.
 - No live preview while scanning.
 - The device's own JPEG compression setting is used as-is.
@@ -108,6 +104,7 @@ It then appears in every app's print dialog.
 
 - `wsd.py` finds devices with a WS-Discovery multicast probe, reads their metadata, and drives the WS-Scan service (`GetScannerElements`, `CreateScanJob`, `RetrieveImage`, `CancelJob`). Scan tickets are built from the device's own default ticket, because hand-written tickets get rejected.
 - `bridge.py` serves the eSCL endpoints (`ScannerCapabilities`, `ScannerStatus`, `ScanJobs`, `NextDocument`), advertises `_uscan._tcp` through the built-in `dns-sd` tool, and crops/converts images with the built-in `sips` tool.
+- `ipp.py` finds IPP printers and adds them to macOS with the built-in `ippfind`, `ipptool` and `lpadmin` tools.
 - `airscan_wsd.py` is the command line: setup, service installation and configuration.
 
 Run the offline tests with:
